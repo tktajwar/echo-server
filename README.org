@@ -4,3 +4,31 @@ Simple asynchronous echo server written in [[https://rust-lang.org/][Rust]] usin
 runtime. This server listens for incoming TCP connections and echoes
 any received message back to the client. This server can handle
 multiple clients asynchronously.
+
+* Example usage
+
+After cloning the repository, build and run the package with
+~cargo~. The server will bind a TCP listener to ~127.0.0.1:6142~.
+
+#+begin_src shell
+  cargo run
+#+end_src
+
+While the server is running, use ~telnet~ to establish connection to
+the server. Any message sent to the server will be echoed back.
+
+#+begin_src shell
+  telnet 127.0.0.1 6142
+  Trying 127.0.0.1...
+  Connected to 127.0.0.1.
+  Escape character is '^]'.
+  hello
+  hello
+  I LOVE RUST
+  I LOVE RUST
+  Tokio makes life easier.
+  Tokio makes life easier.
+  ^]
+  telnet> quit
+  Connection closed.
+#+end_src
