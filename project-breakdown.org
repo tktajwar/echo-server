@@ -1,0 +1,136 @@
+#+TITLE: Project Breakdown
+
+* Introduction
+
+This is the breakdown of [[file:src/main.rs][main.rs]]. We are building a simple
+asynchronous TCP echo server that will echo back the messages sent to
+it. This breakdown is written in [[https://orgmode.org/][Org mode]] and uses [[https://orgmode.org/manual/Working-with-Source-Code.html][source code blocks]]
+to break our entire project into several snippets. We are also using
+[[https://orgmode.org/manual/Noweb-Reference-Syntax.html][noweb reference syntax]] of Org mode to reference other source blocks
+inside a source block.
+
+* Import Modules
+
+#+begin_src rust :tangle ./src/main.rs
+  use tokio::io::{AsyncReadExt,AsyncWriteExt};
+  use tokio::net::TcpListener;
+
+#+end_src
+
+We are importing necessary functions and structures from the [[https://tokio.rs/][Tokio]]
+library to be used later in this project. /AsyncReadExt/ provides
+~.read~ method that will be used to read bytes from a socket into a
+buffer. /AsyncWriteExt/ provides ~.write_all~ method that will be used
+to write the contents of the buffer back to the socket. We will use
+the ~.bind~ function provided by /TcpListener/ to bind a TCP listener
+to a specific address.
+
+* The main function
+
+#+begin_src rust :noweb no-export :tangle ./src/main.rs
+  #[tokio::main]
+  async fn main() -> tokio::io::Result<()> {
+      <<bind-tcp-listener>>
+
+      loop {
+  	<<accept-connection>>
+
+  	<<handle-connection>>
+      }
+  }
+#+end_src
+
+The ~#[tokio::main]~ macro transforms our main function and sets up
+the runtime for executing asynchronous code. See [[https://tokio.rs/tokio/tutorial/hello-tokio][Hello World | Tokio]]
+to learn more. Inside the main function, we are referencing three
+source blocks: =bind-tcp-listener=, =accept-connection=, and
+=handle-connection=. Think of it like the contents of those source
+blocks should be expanded in those places. First operation in our main
+function is creating a new TCP listener. Then, inside a loop we are
+accepting new connections from the listener and handling those
+connections. Continue reading to see how they are implemented.
+
+* Bind TCP
+
+#+name: bind-tcp-listener
+#+begin_src rust
+  let listener = TcpListener::bind("127.0.0.1:6142").await?;
+#+end_src
+
+We are binding a TCP listener to the IP address =127.0.0.1= and the
+port =6142=. See [[https://docs.rs/tokio/latest/tokio/net/struct.TcpListener.html#method.bind][TcpListener in Tokio::net#method.bind]] for further
+information.
+
+* Accept connections
+
+#+name: accept-connection
+#+begin_src rust
+  let (mut socket, _) = listener.accept().await?;
+#+end_src
+
+Wait for a new connection and store the TCP stream in ~socket~
+variable while ignoring the socket address. See [[https://docs.rs/tokio/latest/tokio/net/struct.TcpListener.html#method.accept][TcpListener in
+tokio::net#method.accept]] for further information. The =await= keyword
+allows us to suspend the execution of subsequent lines in the function
+until the completion of the current operation. See [[https://doc.rust-lang.org/std/keyword.await.html][await - Rust]] for
+further information.
+
+* Handle connections
+
+#+name: handle-connection
+#+begin_src rust :noweb no-export
+  tokio::spawn(async move {
+      println!("-- New Connection --");
+      let mut buf = [0; 1024];
+      loop {
+  	<<echo-message>>
+      }
+  });
+#+end_src
+
+~tokio::spawn~ spawns a new asynchronous task. See [[https://docs.rs/tokio/latest/tokio/task/fn.spawn.html][spawn in
+tokio::task]] for further information. We are spawning a new task for
+every connection. Inside the task, we are printing out to indicate
+that we have a new connection, we are creating an array named =buf= to
+store incoming messages from the client, and inside a loop, we are echoing
+back every message we receive from the client. See the source block
+for =echo-message= to see how that's implemented.
+
+* Echo messages
+
+#+name: echo-message
+#+begin_src rust
+  let bytes_read = match socket.read(&mut buf).await {
+      Ok(0) => {
+          println!("-- Connection Closed --");
+          return
+      },
+      Ok(n) => n,
+      Err(err) => {
+          eprintln!("Error reading from socket: {:?}", err);
+          0
+      },
+  };
+  println!("{:?}", &buf[..bytes_read]);
+
+  if let Err(err) = socket.write_all(&buf[..bytes_read]).await {
+      eprintln!("Error writing to socket: {:?}", err);
+  }
+#+end_src
+
+We are pulling bytes from our socket into our =buf= variable. See
+[[https://docs.rs/tokio/latest/tokio/io/trait.AsyncReadExt.html#method.read][AsyncReadExt in tokio::net#method.read]] for further information. If the
+length of the message is zero, it means that there's an end of
+connection (=EOF= returned) so we close the task. Otherwise, we store
+the length into our =bytes_read= variable. We print the received
+message and then echo it back to our client. See [[https://docs.rs/tokio/latest/tokio/io/trait.AsyncWriteExt.html#method.write_all][AsyncWriteExt in
+tokio::net#method.write_all]] for further information.
+
+* Summary
+
+We are using the Tokio runtime to build a TCP echo server. Our server
+first binds a TCP listener to the address =127.0.0.1:6142=. Then
+inside a loop, we are constantly listening to new TCP connections and
+echoing back any message they send to us. We echo back the messages
+they send by running another loop for each message and writing back
+what they write to us.

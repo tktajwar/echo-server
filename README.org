@@ -32,3 +32,8 @@ the server. Any message sent to the server will be echoed back.
   telnet> quit
   Connection closed.
 #+end_src
+
+* Project Breakdown
+
+See the breakdown of the source code in [[file:project-breakdown.org][project-breakdown.org]]. It
+contains snippet-by-snippet explanation of the entire source code.
